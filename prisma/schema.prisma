@@ -1,0 +1,365 @@
+// ============================================================
+// REMEINIA Care AI — Schema de Base de Datos
+// ORM: Prisma | DB: PostgreSQL
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUM: Roles de usuario
+// ============================================================
+enum RolUsuario {
+  ENFERMERO        // Enfermero/a clínico
+  SUPERVISOR       // Coordinador/a o supervisor/a
+  ADMINISTRADOR    // Administrador del sistema
+  REVISOR_REMEINIA // Revisor académico REMEINIA
+}
+
+// ============================================================
+// ENUM: Estado del paciente (semaforización clínica)
+// ============================================================
+enum EstadoPaciente {
+  ESTABLE          // Verde
+  VIGILANCIA       // Amarillo
+  CRITICO          // Rojo
+  DESCONOCIDO      // Gris (datos insuficientes)
+}
+
+// ============================================================
+// ENUM: Prioridad clínica de diagnósticos
+// ============================================================
+enum PrioridadClinica {
+  INMEDIATA        // Atención inmediata < 1 hora
+  INTERMEDIA       // Dentro de las siguientes horas
+  VIGILANCIA       // Monitoreo continuo
+}
+
+// ============================================================
+// ENUM: Nivel de confianza de las sugerencias
+// ============================================================
+enum NivelConfianza {
+  ALTA
+  MEDIA
+  BAJA
+  INSUFICIENTE_DATOS
+}
+
+// ============================================================
+// ENUM: Nivel de evidencia (adaptado de GRADE/Oxford)
+// ============================================================
+enum NivelEvidencia {
+  IA    // Meta-análisis de ECA de alta calidad
+  IB    // Al menos un ECA bien diseñado
+  IIA   // Estudios controlados sin aleatorización
+  IIB   // Estudios cuasi-experimentales
+  III   // Estudios descriptivos / comparativos
+  IV    // Opinión de expertos / consenso
+  GPP   // Buenas prácticas clínicas
+}
+
+// ============================================================
+// ENUM: Sexo biológico
+// ============================================================
+enum Sexo {
+  MASCULINO
+  FEMENINO
+  OTRO
+  NO_ESPECIFICADO
+}
+
+// ============================================================
+// MODELO: Usuario del sistema
+// ============================================================
+model Usuario {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  nombre            String
+  apellidos         String
+  passwordHash      String
+  rol               RolUsuario  @default(ENFERMERO)
+  activo            Boolean     @default(true)
+  servicio          String?     // Área de adscripción
+  cedula            String?     // Cédula profesional
+  institucion       String?
+  avatarUrl         String?
+  ultimoAcceso      DateTime?
+  tokenRecuperacion String?
+  tokenExpiracion   DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  valoraciones      Valoracion[]
+  bitacora          BitacoraAccion[]
+  planes            PlanCuidados[]
+
+  @@map("usuarios")
+}
+
+// ============================================================
+// MODELO: Valoración clínica del paciente
+// ============================================================
+model Valoracion {
+  id                  String          @id @default(cuid())
+  folio               String          @unique @default(cuid())
+
+  // Identificación clínica
+  inicialesPaciente   String          // Solo iniciales — privacidad
+  edad                Int
+  sexo                Sexo
+  servicio            String
+  cama                String?
+  diagnosticoMedico   String
+  comorbilidades      String[]        @default([])
+  motivoAtencion      String
+  esDemo              Boolean         @default(false)
+
+  // Signos vitales
+  frecuenciaCardiaca  Float?
+  frecuenciaRespir    Float?
+  tensionArterialSis  Float?
+  tensionArterialDias Float?
+  presionArterialMedia Float?
+  temperatura         Float?
+  saturacionO2        Float?
+  glucosaCapilar      Float?
+  escalaDolor         Int?            // 0-10
+  glasgow             Int?            // 3-15
+  diuresisHora        Float?          // mL/hr
+
+  // Gasometría arterial
+  gaso_pH             Float?
+  gaso_PaCO2          Float?
+  gaso_PaO2           Float?
+  gaso_HCO3           Float?
+  gaso_SaO2           Float?
+  gaso_Lactato        Float?
+  gaso_PaFiO2         Float?          // Calculado automáticamente
+
+  // Ventilación mecánica
+  ventilacionMecanica Boolean         @default(false)
+  tipoO2              String?         // Puntas nasales, mascarilla, VMI, etc.
+  modoVentilatorio    String?
+  fio2                Float?          // 0.21–1.0
+  peep                Float?
+  volumenTidal        Float?
+  frProgramada        Float?
+  presionPico         Float?
+  presionPlateau      Float?
+  secreciones         String?
+  musculosAccesorios  Boolean         @default(false)
+  sincroniaVentilador Boolean         @default(true)
+
+  // Laboratorios (almacenados como JSON flexible)
+  laboratorios        Json?
+
+  // Valoración por sistemas (JSON estructurado)
+  valoracionSistemas  Json?
+
+  // Dispositivos invasivos y soporte (JSON)
+  dispositivos        Json?
+
+  // Observaciones narrativas
+  observaciones       String?
+  prioridadesPercibidas String?
+
+  // Estado clínico calculado
+  estadoPaciente      EstadoPaciente  @default(DESCONOCIDO)
+  alertasActivas      Json?           // Array de alertas generadas
+
+  // Metadatos
+  fechaHora           DateTime        @default(now())
+  creadoPor           String
+  updatedAt           DateTime        @updatedAt
+
+  usuario             Usuario         @relation(fields: [creadoPor], references: [id])
+  planCuidados        PlanCuidados?
+
+  @@map("valoraciones")
+}
+
+// ============================================================
+// MODELO: Plan de cuidados generado
+// ============================================================
+model PlanCuidados {
+  id              String    @id @default(cuid())
+  valoracionId    String    @unique
+  creadoPor       String
+
+  // Plan generado como JSON estructurado
+  // Estructura: { diagnosticos[], noc[], nic[], guias[], prioridades, resumen }
+  contenido       Json
+
+  // Notas editables por el profesional
+  notasEnfermero  String?
+
+  // Estado del plan
+  finalizado      Boolean   @default(false)
+  avalaRemeinia   Boolean   @default(false)
+  fechaAval       DateTime?
+  avalistaNombre  String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  valoracion      Valoracion @relation(fields: [valoracionId], references: [id], onDelete: Cascade)
+  usuario         Usuario    @relation(fields: [creadoPor], references: [id])
+  evoluciones     EvolucionClinica[]
+
+  @@map("planes_cuidados")
+}
+
+// ============================================================
+// MODELO: Evolución clínica (seguimiento)
+// ============================================================
+model EvolucionClinica {
+  id              String      @id @default(cuid())
+  planId          String
+  texto           String
+  autor           String
+  fechaHora       DateTime    @default(now())
+
+  plan            PlanCuidados @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@map("evoluciones_clinicas")
+}
+
+// ============================================================
+// MODELO: Catálogo de diagnósticos de enfermería
+// Preparado para cargar taxonomías licenciadas (ej. NANDA-I)
+// ============================================================
+model CatalogoDiagnostico {
+  id                    String   @id @default(cuid())
+  codigo                String   @unique
+  etiqueta              String   // Nombre del diagnóstico
+  dominio               String?
+  clase                 String?
+  definicionCorta       String?
+  factoresRelacionados  String[] @default([])
+  caracteristicasDefinitorias String[] @default([])
+  factoresRiesgo        String[] @default([])
+  activo                Boolean  @default(true)
+  esDemoFicticio        Boolean  @default(false) // Marcado como ficticio en demo
+  notas                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("catalogo_diagnosticos")
+}
+
+// ============================================================
+// MODELO: Catálogo de resultados (NOC-like)
+// ============================================================
+model CatalogoResultado {
+  id                String   @id @default(cuid())
+  codigo            String   @unique
+  etiqueta          String
+  dominio           String?
+  clase             String?
+  definicionCorta   String?
+  indicadores       String[] @default([])
+  escalaDefault     String?
+  activo            Boolean  @default(true)
+  esDemoFicticio    Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("catalogo_resultados")
+}
+
+// ============================================================
+// MODELO: Catálogo de intervenciones (NIC-like)
+// ============================================================
+model CatalogoIntervencion {
+  id                String   @id @default(cuid())
+  codigo            String   @unique
+  etiqueta          String
+  campo             String?
+  clase             String?
+  definicionCorta   String?
+  actividades       String[] @default([])
+  frecuenciaOrient  String?
+  activo            Boolean  @default(true)
+  esDemoFicticio    Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("catalogo_intervenciones")
+}
+
+// ============================================================
+// MODELO: Repositorio de evidencia clínica
+// ============================================================
+model EvidenciaClinica {
+  id                String         @id @default(cuid())
+  titulo            String
+  tipoFuente        String         // "Guía clínica", "Meta-análisis", "ECA", "Revisión sistemática", "Consenso"
+  organizacion      String?        // Ej. "OPS", "ILCOR", "NICE"
+  anio              Int?
+  doi               String?
+  url               String?
+  resumenUtilidad   String         // Breve resumen de utilidad clínica
+  nivelEvidencia    NivelEvidencia
+  fuerzaRecomend    String?        // "Fuerte", "Débil", "Condicional"
+  palabrasClave     String[]       @default([])
+  activo            Boolean        @default(true)
+  esFicticio        Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+
+  @@map("evidencia_clinica")
+}
+
+// ============================================================
+// MODELO: Reglas clínicas configurables
+// ============================================================
+model ReglaClinica {
+  id              String   @id @default(cuid())
+  nombre          String
+  descripcion     String
+  categoria       String   // "alerta_vital", "riesgo_sepsis", "ventilacion", etc.
+  condicion       Json     // Lógica de la regla en JSON estructurado
+  mensajeAlerta   String
+  prioridad       Int      @default(5) // 1=crítica, 10=informativa
+  activa          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("reglas_clinicas")
+}
+
+// ============================================================
+// MODELO: Bitácora de acciones (trazabilidad)
+// ============================================================
+model BitacoraAccion {
+  id          String   @id @default(cuid())
+  usuarioId   String
+  accion      String   // "login", "crear_valoracion", "exportar_pdf", etc.
+  recurso     String?  // ID del recurso afectado
+  detalles    Json?
+  ip          String?
+  userAgent   String?
+  fechaHora   DateTime @default(now())
+
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("bitacora_acciones")
+}
+
+// ============================================================
+// MODELO: Configuración del sistema (admin)
+// ============================================================
+model ConfiguracionSistema {
+  id          String   @id @default(cuid())
+  clave       String   @unique
+  valor       String
+  descripcion String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("configuracion_sistema")
+}
