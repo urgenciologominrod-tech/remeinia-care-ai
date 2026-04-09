@@ -1,12 +1,21 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
 import { redirect } from 'next/navigation';
+import type { ReactNode } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const { getServerSession } = await import('next-auth');
+  const { authOptions } = await import('@/lib/auth');
+
   const session = await getServerSession(authOptions);
-  if (!session) redirect('/login');
+
+  if (!session) {
+    redirect('/login');
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
