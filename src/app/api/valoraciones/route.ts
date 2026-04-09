@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // ============================================================
 // REMEINIA Care AI — API: Crear valoración + ejecutar motor clínico
 // ============================================================
