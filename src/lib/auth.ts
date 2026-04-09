@@ -29,7 +29,8 @@ export const authOptions: NextAuthOptions = {
         if (!usuario || !usuario.activo) return null;
 
 const passwordValida = await bcrypt.compare(credentials.password, usuario.passwordHash);
-        // Registrar último acceso
+if (!passwordValida) return null;       
+ // Registrar último acceso
         await prisma.usuario.update({
           where: { id: usuario.id },
           data: { ultimoAcceso: new Date() },
