@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
     data: {
       valoracionId: valoracion.id,
       creadoPor: userId,
-      contenido: resultado.plan,
+      contenido: JSON.parse(JSON.stringify(resultado.plan)),
     },
   });
 
