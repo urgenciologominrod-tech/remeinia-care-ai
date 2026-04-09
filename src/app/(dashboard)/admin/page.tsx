@@ -1,17 +1,25 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import {
-  Users, Settings, BookOpen, FileText, Activity,
+  Users, Settings, BookOpen, Activity,
   Database, Shield, AlertTriangle, ChevronRight, ToggleLeft,
 } from 'lucide-react';
 
 export default async function AdminPage() {
+  const { getServerSession } = await import('next-auth');
+  const { authOptions } = await import('@/lib/auth');
+  const { prisma } = await import('@/lib/prisma');
+
   const session = await getServerSession(authOptions);
   const rol = (session?.user as any)?.rol;
-  if (rol !== 'ADMINISTRADOR') redirect('/dashboard');
+
+  if (rol !== 'ADMINISTRADOR') {
+    redirect('/dashboard');
+  }
 
   const [totalUsuarios, totalValoraciones, totalCatalogoDx, totalEvidencias, ultimosLogs] = await Promise.all([
     prisma.usuario.count(),
@@ -45,7 +53,6 @@ export default async function AdminPage() {
         <p className="text-sm text-gray-500 mt-0.5">Gestión del sistema REMEINIA Care AI</p>
       </div>
 
-      {/* Estadísticas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {tarjetas.map(t => (
           <Link key={t.href} href={t.href} className="card-clinical hover:border-clinical-200 group">
@@ -61,7 +68,6 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      {/* Módulos de configuración */}
       <div>
         <h2 className="text-base font-semibold text-slate-700 mb-3">Módulos de configuración</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -87,7 +93,6 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* Bitácora de acciones */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-slate-700">Bitácora de acciones recientes</h2>
@@ -123,7 +128,6 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* Aviso de seguridad */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
         <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
         <div>
