@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       observaciones: body.observaciones,
       prioridadesPercibidas: body.prioridadesPercibidas,
       estadoPaciente: resultado.estadoPaciente,
-      alertasActivas: resultado.alertas,
+      alertasActivas: JSON.parse(JSON.stringify(resultado.alertas)),
       creadoPor: userId,
     },
   });
