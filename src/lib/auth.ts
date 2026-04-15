@@ -1,5 +1,5 @@
 // ============================================================
-// REMEINIA Care AI — Configuración de NextAuth
+// REMEINIA Care AI — Configuración de NextAuth (DEBUG MODE)
 // ============================================================
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: 'jwt', maxAge: 8 * 60 * 60 }, // 8 horas — sesión de turno
+  session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
   pages: {
     signIn: '/login',
     error: '/login',
@@ -19,35 +19,85 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Correo', type: 'email' },
         password: { label: 'Contraseña', type: 'password' },
       },
+
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        console.log("========== 🔐 DEBUG LOGIN ==========");
 
-        const usuario = await prisma.usuario.findUnique({
-          where: { email: credentials.email.toLowerCase().trim() },
-        });
+        if (!credentials?.email || !credentials?.password) {
+          console.log("❌ Credenciales vacías");
+          return null;
+        }
 
-        if (!usuario || !usuario.activo) return null;
+        const email = credentials.email.toLowerCase().trim();
+        const password = credentials.password;
 
-const passwordValida = await bcrypt.compare(credentials.password, usuario.passwordHash);
-if (!passwordValida) return null;       
- // Registrar último acceso
-        await prisma.usuario.update({
-          where: { id: usuario.id },
-          data: { ultimoAcceso: new Date() },
-        }).catch(() => {}); // No fallar el login por esto
+        console.log("👉 Email recibido:", email);
+        console.log("👉 Password length:", password.length);
 
-        // Registrar en bitácora
-        await prisma.bitacoraAccion.create({
-          data: {
-            usuarioId: usuario.id,
-            accion: 'login',
-            detalles: { email: usuario.email },
-          },
-        }).catch(() => {});
+        const usuario = await prisma.usuario.findFirst({
+  where: {
+    email: email,
+  },
+});
+
+        console.log("👉 Usuario encontrado:", usuario);
+
+        if (!usuario) {
+          console.log("❌ Usuario NO existe");
+          return null;
+        }
+
+        if (!usuario.activo) {
+          console.log("❌ Usuario inactivo");
+          return null;
+        }
+
+        const hash = usuario.passwordHash?.trim();
+
+        console.log("👉 Hash en BD:", hash);
+        console.log("👉 Hash length:", hash?.length);
+
+        // Validación crítica de hash
+        if (!hash || hash.length !== 60) {
+          console.log("❌ Hash inválido (longitud incorrecta o vacío)");
+          return null;
+        }
+
+        const passwordValida = await bcrypt.compare(password, hash);
+
+        console.log("👉 Resultado bcrypt.compare:", passwordValida);
+
+        if (!passwordValida) {
+          console.log("❌ Password incorrecto");
+          return null;
+        }
+
+        console.log("✅ PASSWORD CORRECTO");
+
+        // Actualización de último acceso
+        await prisma.usuario
+          .update({
+            where: { id: usuario.id },
+            data: { ultimoAcceso: new Date() },
+          })
+          .catch((e) => console.log("⚠️ Error actualizando acceso:", e));
+
+        // Bitácora
+        await prisma.bitacoraAccion
+          .create({
+            data: {
+              usuarioId: usuario.id,
+              accion: 'login',
+              detalles: { email: usuario.correoElectronico },
+            },
+          })
+          .catch((e) => console.log("⚠️ Error en bitácora:", e));
+
+        console.log("🎉 LOGIN EXITOSO");
 
         return {
           id: usuario.id,
-          email: usuario.email,
+          email: usuario.correoElectronico,
           name: `${usuario.nombre} ${usuario.apellidos}`,
           rol: usuario.rol,
           servicio: usuario.servicio,
@@ -55,6 +105,7 @@ if (!passwordValida) return null;
       },
     }),
   ],
+
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -64,6 +115,7 @@ if (!passwordValida) return null;
       }
       return token;
     },
+
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).rol = token.rol;
