@@ -88,7 +88,7 @@ export const authOptions: NextAuthOptions = {
             data: {
               usuarioId: usuario.id,
               accion: 'login',
-              detalles: { email: usuario.correoElectronico },
+              detalles: { email: usuario.email },
             },
           })
           .catch((e) => console.log("⚠️ Error en bitácora:", e));
@@ -97,7 +97,7 @@ export const authOptions: NextAuthOptions = {
 
         return {
           id: usuario.id,
-          email: usuario.correoElectronico,
+          email: usuario.email,
           name: `${usuario.nombre} ${usuario.apellidos}`,
           rol: usuario.rol,
           servicio: usuario.servicio,
