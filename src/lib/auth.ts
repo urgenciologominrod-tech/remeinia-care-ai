@@ -1,5 +1,5 @@
 // ============================================================
-// REMEINIA Care AI — Configuración de NextAuth (DEBUG MODE)
+// REMEINIA Care AI — Configuración de NextAuth
 // ============================================================
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -21,58 +21,37 @@ export const authOptions: NextAuthOptions = {
       },
 
       async authorize(credentials) {
-        console.log("========== 🔐 DEBUG LOGIN ==========");
-
         if (!credentials?.email || !credentials?.password) {
-          console.log("❌ Credenciales vacías");
           return null;
         }
 
         const email = credentials.email.toLowerCase().trim();
         const password = credentials.password;
 
-        console.log("👉 Email recibido:", email);
-        console.log("👉 Password length:", password.length);
-
         const usuario = await prisma.usuario.findFirst({
-  where: {
-    email: email,
-  },
-});
-
-        console.log("👉 Usuario encontrado:", usuario);
+          where: { email },
+        });
 
         if (!usuario) {
-          console.log("❌ Usuario NO existe");
           return null;
         }
 
         if (!usuario.activo) {
-          console.log("❌ Usuario inactivo");
           return null;
         }
 
         const hash = usuario.passwordHash?.trim();
 
-        console.log("👉 Hash en BD:", hash);
-        console.log("👉 Hash length:", hash?.length);
-
         // Validación crítica de hash
         if (!hash || hash.length !== 60) {
-          console.log("❌ Hash inválido (longitud incorrecta o vacío)");
           return null;
         }
 
         const passwordValida = await bcrypt.compare(password, hash);
 
-        console.log("👉 Resultado bcrypt.compare:", passwordValida);
-
         if (!passwordValida) {
-          console.log("❌ Password incorrecto");
           return null;
         }
-
-        console.log("✅ PASSWORD CORRECTO");
 
         // Actualización de último acceso
         await prisma.usuario
@@ -80,7 +59,7 @@ export const authOptions: NextAuthOptions = {
             where: { id: usuario.id },
             data: { ultimoAcceso: new Date() },
           })
-          .catch((e) => console.log("⚠️ Error actualizando acceso:", e));
+          .catch(() => {});
 
         // Bitácora
         await prisma.bitacoraAccion
@@ -91,9 +70,7 @@ export const authOptions: NextAuthOptions = {
               detalles: { email: usuario.email },
             },
           })
-          .catch((e) => console.log("⚠️ Error en bitácora:", e));
-
-        console.log("🎉 LOGIN EXITOSO");
+          .catch(() => {});
 
         return {
           id: usuario.id,

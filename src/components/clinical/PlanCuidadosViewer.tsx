@@ -82,7 +82,7 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-slate-800">Plan Personalizado de Cuidados</h1>
-              {valoracion.esDemo && <span className="badge-demo">Paciente Demo</span>}
+              {valoracion.esDemo && <span className="badge-demo">Caso académico</span>}
             </div>
             <p className="text-sm text-gray-500 mt-1">
               Folio: <strong>{valoracion.folio}</strong> · {valoracion.servicio} · {valoracion.edad} años ·{' '}
@@ -224,8 +224,8 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
               <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                 <Info className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-gray-500">
-                  Los diagnósticos, resultados e intervenciones marcados con [DEMO] son demostrativos.
-                  Para uso clínico real, el administrador debe cargar catálogos con licencia apropiada.
+                  Diagnóstico sugerido compatible con taxonomía enfermera. Resultado esperado tipo NOC e intervención sugerida tipo NIC.
+                  Contenido demostrativo para apoyo académico y clínico, requiere validación profesional.
                   Los niveles de confianza indican la solidez de los datos que respaldan la sugerencia.
                 </p>
               </div>
@@ -256,8 +256,9 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
                               Confianza: {confColors.label}
                             </span>
                           </div>
-                          <p className="text-sm font-bold text-slate-800 mt-1.5">{dx.etiqueta}</p>
+                          <p className="text-sm font-bold text-slate-800 mt-1.5">Diagnóstico de enfermería sugerido: {dx.etiqueta}</p>
                           <p className="text-xs text-gray-400 mt-0.5">Código: {dx.codigo}</p>
+                          {dx.dominioClinico && <p className="text-xs text-clinical-600 mt-0.5">Dominio clínico: {dx.dominioClinico}</p>}
                         </div>
                       </div>
                       {expanded ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
@@ -270,7 +271,7 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
                         <div className="p-4 bg-gray-50/50 grid sm:grid-cols-2 gap-4">
                           <div>
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                              {dx.factoresRelacionados?.length ? 'Factores relacionados' : 'Factores de riesgo'}
+                              {dx.factoresRelacionados?.length ? 'Relacionado con' : 'Factores de riesgo'}
                             </p>
                             <ul className="space-y-1">
                               {(dx.factoresRelacionados ?? dx.factoresRiesgo ?? []).map((f, i) => (
@@ -281,7 +282,7 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
                             </ul>
                           </div>
                           <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Manifestaciones encontradas</p>
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Manifestado por</p>
                             <ul className="space-y-1">
                               {(dx.manifestacionesClave ?? []).map((m, i) => (
                                 <li key={i} className="text-sm text-slate-600 flex items-start gap-1.5">
@@ -299,10 +300,10 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
                         </div>
 
                         {/* NOC */}
-                        {noc && (
+                        {noc ? (
                           <div className="p-4 bg-accent-50/30">
                             <p className="text-xs font-semibold text-accent-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                              <CheckCircle className="w-3.5 h-3.5" /> Resultado esperado (NOC-like · Demo)
+                              <CheckCircle className="w-3.5 h-3.5" /> Resultado esperado tipo NOC
                             </p>
                             <p className="text-sm font-semibold text-slate-700">{noc.etiqueta}</p>
                             <p className="text-xs text-gray-500 mt-0.5 italic">{noc.metaEsperada}</p>
@@ -312,13 +313,15 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
                               ))}
                             </div>
                           </div>
+                        ) : (
+                          <div className="p-4 bg-gray-50 text-sm text-gray-600">No especificado por el motor clínico; requiere validación por personal de enfermería responsable.</div>
                         )}
 
                         {/* NICs */}
-                        {nics.length > 0 && nics.map(nic => (
+                        {nics.length > 0 ? nics.map(nic => (
                           <div key={nic.codigo} className="p-4">
                             <p className="text-xs font-semibold text-clinical-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                              <Activity className="w-3.5 h-3.5" /> Intervención (NIC-like · Demo): {nic.etiqueta}
+                              <Activity className="w-3.5 h-3.5" /> Intervención sugerida tipo NIC: {nic.etiqueta}
                             </p>
                             {nic.frecuencia && (
                               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full mb-2 inline-block">
@@ -334,7 +337,19 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
                               ))}
                             </ul>
                           </div>
-                        ))}
+                        )) : (
+                          <div className="p-4 bg-gray-50 text-sm text-gray-600">No especificado por el motor clínico; requiere validación por personal de enfermería responsable.</div>
+                        )}
+                        {dx.criteriosEvaluacion && dx.criteriosEvaluacion.length > 0 && (
+                          <div className="p-4 bg-success-50/40">
+                            <p className="text-xs font-semibold text-success-700 uppercase tracking-wide mb-2">Criterios de evaluación</p>
+                            <ul className="space-y-1">
+                              {dx.criteriosEvaluacion.map((c, i) => (
+                                <li key={i} className="text-sm text-slate-700 flex items-start gap-1.5"><span className="text-success-500 mt-1">•</span>{c}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -376,8 +391,8 @@ export default function PlanCuidadosViewer({ valoracion, plan, usuario, currentU
           {tab === 'guias' && (
             <div className="space-y-4">
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-                <strong>AVISO:</strong> Las referencias marcadas como [DATO DEMO] son ficticias y solo con fines de demostración del sistema.
-                Para uso clínico real, el administrador debe cargar un repositorio de evidencia real curado.
+                <strong>AVISO:</strong> Contenido demostrativo para apoyo académico y clínico. Requiere validación profesional
+                y revisión institucional de evidencia para uso asistencial.
               </div>
               {contenido.recomendacionesGuias.map((g, i) => (
                 <div key={i} className="border border-gray-100 rounded-xl p-4 bg-white">

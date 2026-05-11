@@ -100,7 +100,7 @@ export async function generarPDFPlan(
   doc.setFont('helvetica', 'normal');
   const avisoText = doc.splitTextToSize(
   textoSeguroPDF(
-    'Este documento es generado por un sistema de apoyo a la toma de decisiones. NO sustituye el juicio clínico profesional. Todas las recomendaciones deben ser verificadas y validadas por el profesional de enfermería responsable.'
+    'Documento de apoyo a la toma de decisiones. Requiere validación por personal de enfermería responsable.'
   ),
   marginR - marginL - 18,
 );
@@ -158,7 +158,7 @@ export async function generarPDFPlan(
   });
   y = (doc as any).lastAutoTable.finalY + 5;
 
-  // ── Sección 2: Resumen del paciente ───────────────────────
+  // ── Sección 2: Resumen del paciente y gravedad ───────────────────────
   checkPageBreak(25);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
@@ -171,6 +171,13 @@ export async function generarPDFPlan(
   const resumenLines = doc.splitTextToSize(textoSeguroPDF(plan.resumenPaciente), marginR - marginL);
   doc.text(resumenLines, marginL, y);
   y += resumenLines.length * 4.5 + 5;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...COLOR_AZUL);
+  doc.text('Clasificación de gravedad clínica:', marginL, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLOR_NEGRO);
+  doc.text('ESTABLE / VIGILANCIA / CRITICO (según alertas activas y datos disponibles)', marginL + 52, y);
+  y += 6;
 
   // ── Sección 3: Alertas clínicas ───────────────────────────
   if (plan.alertas.filter(a => a.tipo !== 'informativa').length > 0) {
@@ -212,7 +219,7 @@ export async function generarPDFPlan(
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLOR_GRIS);
   doc.text(
-  textoSeguroPDF('Los códigos y etiquetas son de uso demostrativo. Para uso clínico real, utilizar catalogos con licencia apropiada.'),
+  textoSeguroPDF('Diagnóstico sugerido compatible con taxonomía enfermera. Resultado esperado tipo NOC e intervención sugerida tipo NIC. Contenido demostrativo, requiere validación profesional.'),
   marginL,
   y + 3
 );
@@ -236,6 +243,9 @@ export async function generarPDFPlan(
 );
     y += 9;
 
+    const nocDx = plan.resultados.filter(r => r.relacionadoCon === dx.codigo);
+    const nicDx = plan.intervenciones.filter(n => n.relacionadaCon === dx.codigo);
+    const actividades = nicDx.flatMap(n => n.actividades).slice(0, 6);
     (doc as any).autoTable({
       startY: y,
       head: [],
@@ -243,6 +253,10 @@ export async function generarPDFPlan(
   ['Factores relacionados / de riesgo:', listaSeguraPDF(dx.factoresRelacionados ?? dx.factoresRiesgo)],
   ['Manifestaciones clave encontradas:', listaSeguraPDF(dx.manifestacionesClave)],
   ['Justificacion clinica:', textoSeguroPDF(dx.justificacion)],
+  ['Resultados esperados tipo NOC:', nocDx.length ? listaSeguraPDF(nocDx.map(n => n.etiqueta)) : textoSeguroPDF('No especificado por el motor clínico; requiere validación por personal de enfermería responsable.')],
+  ['Intervenciones sugeridas tipo NIC:', nicDx.length ? listaSeguraPDF(nicDx.map(n => n.etiqueta)) : textoSeguroPDF('No especificado por el motor clínico; requiere validación por personal de enfermería responsable.')],
+  ['Actividades de enfermería sugeridas:', actividades.length ? listaSeguraPDF(actividades) : textoSeguroPDF('No especificado por el motor clínico; requiere validación por personal de enfermería responsable.')],
+  ['Criterios de evaluación:', listaSeguraPDF(dx.criteriosEvaluacion)],
 ],
       theme: 'plain',
       styles: { fontSize: 8, cellPadding: 2 },
@@ -288,7 +302,7 @@ export async function generarPDFPlan(
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLOR_GRIS);
   doc.text(
-  textoSeguroPDF('AVISO: Las referencias marcadas como [DATO DEMO] son ficticias y solo para demostracion del sistema.'),
+  textoSeguroPDF('AVISO: Contenido demostrativo para apoyo académico y clínico. Requiere validación profesional.'),
   marginL,
   y + 3
 );

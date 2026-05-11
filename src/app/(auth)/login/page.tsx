@@ -200,7 +200,7 @@ export default function LoginPage() {
                 <div>
                   <p className="text-sm font-semibold text-purple-800">Modo demostración</p>
                   <p className="text-xs text-purple-600 mt-0.5">
-                    Los pacientes demo son <strong>completamente ficticios</strong>. Solo con fines educativos.
+                    Caso académico para apoyo a la toma de decisiones clínicas de enfermería. <strong>Requiere validación profesional</strong>.
                   </p>
                 </div>
               </div>

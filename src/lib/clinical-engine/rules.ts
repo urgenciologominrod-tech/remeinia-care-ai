@@ -13,6 +13,11 @@ import type {
   ParametrosVentilador,
   DispositivosInvasivos,
 } from '@/types/clinical';
+import { normalizeFio2 } from './fio2';
+
+// Evita tratar 0 como ausencia de dato y valida solo números finitos.
+const hasNumericValue = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
 
 // ─── Interfaz de entrada para el evaluador de reglas ─────────
 export interface DatosEvaluacion {
@@ -36,14 +41,14 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
 
   // ── 1. Validaciones de campos esenciales ─────────────────
   const camposFaltantes: string[] = [];
-  if (!sv.saturacionO2) camposFaltantes.push('SpO2');
-  if (!sv.frecuenciaCardiaca) camposFaltantes.push('Frecuencia cardíaca');
-  if (!sv.presionArterialMedia && (!sv.tensionArterialSis || !sv.tensionArterialDias)) {
+  if (!hasNumericValue(sv.saturacionO2)) camposFaltantes.push('SpO2');
+  if (!hasNumericValue(sv.frecuenciaCardiaca)) camposFaltantes.push('Frecuencia cardíaca');
+  if (!hasNumericValue(sv.presionArterialMedia) && (!hasNumericValue(sv.tensionArterialSis) || !hasNumericValue(sv.tensionArterialDias))) {
     camposFaltantes.push('Tensión arterial / PAM');
   }
-  if (!sv.temperatura) camposFaltantes.push('Temperatura');
-  if (!sv.frecuenciaRespir) camposFaltantes.push('Frecuencia respiratoria');
-  if (!sv.glasgow) camposFaltantes.push('Escala Glasgow');
+  if (!hasNumericValue(sv.temperatura)) camposFaltantes.push('Temperatura');
+  if (!hasNumericValue(sv.frecuenciaRespir)) camposFaltantes.push('Frecuencia respiratoria');
+  if (!hasNumericValue(sv.glasgow)) camposFaltantes.push('Escala Glasgow');
 
   if (camposFaltantes.length >= 4) {
     alertas.push({
@@ -53,7 +58,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
   }
 
   // ── 2. Reglas de oxigenación ─────────────────────────────
-  if (sv.saturacionO2 !== undefined) {
+  if (hasNumericValue(sv.saturacionO2)) {
     if (sv.saturacionO2 < 88) {
       alertas.push({
         tipo: 'critica',
@@ -73,10 +78,11 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
 
   // ── 3. Reglas de relación PaO2/FiO2 ─────────────────────
   let paFiO2: number | undefined = gaso.PaFiO2;
-  if (!paFiO2 && gaso.PaO2 && vent.fio2) {
-    paFiO2 = Math.round(gaso.PaO2 / vent.fio2);
+  const fio2Normalizada = normalizeFio2(vent.fio2);
+  if (!hasNumericValue(paFiO2) && hasNumericValue(gaso.PaO2) && fio2Normalizada !== null) {
+    paFiO2 = Math.round(gaso.PaO2 / fio2Normalizada);
   }
-  if (paFiO2 !== undefined) {
+  if (hasNumericValue(paFiO2)) {
     if (paFiO2 < 100) {
       alertas.push({
         tipo: 'critica',
@@ -102,7 +108,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
   }
 
   // ── 4. Reglas de gasometría ──────────────────────────────
-  if (gaso.pH !== undefined) {
+  if (hasNumericValue(gaso.pH)) {
     if (gaso.pH < 7.20) {
       alertas.push({
         tipo: 'critica',
@@ -127,7 +133,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
     }
   }
 
-  if (gaso.Lactato !== undefined) {
+  if (hasNumericValue(gaso.Lactato)) {
     if (gaso.Lactato >= 4) {
       alertas.push({
         tipo: 'critica',
@@ -146,8 +152,8 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
   }
 
   // ── 5. Reglas hemodinámicas ──────────────────────────────
-  const pam = sv.presionArterialMedia ??
-    (sv.tensionArterialSis && sv.tensionArterialDias
+  const pam = hasNumericValue(sv.presionArterialMedia) ? sv.presionArterialMedia :
+    (hasNumericValue(sv.tensionArterialSis) && hasNumericValue(sv.tensionArterialDias)
       ? Math.round((sv.tensionArterialSis + 2 * sv.tensionArterialDias) / 3)
       : undefined);
 
@@ -169,7 +175,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
     }
   }
 
-  if (sv.frecuenciaCardiaca !== undefined) {
+  if (hasNumericValue(sv.frecuenciaCardiaca)) {
     if (sv.frecuenciaCardiaca > 130) {
       alertas.push({
         tipo: 'advertencia',
@@ -188,7 +194,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
   }
 
   // ── 6. Reglas respiratorias ──────────────────────────────
-  if (sv.frecuenciaRespir !== undefined) {
+  if (hasNumericValue(sv.frecuenciaRespir)) {
     if (sv.frecuenciaRespir >= 30) {
       alertas.push({
         tipo: 'advertencia',
@@ -227,12 +233,12 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
 
   // ── 8. Riesgo de sepsis (criterios clínicos) ─────────────
   const criteriosSepsis: string[] = [];
-  if (sv.temperatura && (sv.temperatura > 38.3 || sv.temperatura < 36)) criteriosSepsis.push('temperatura alterada');
-  if (sv.frecuenciaCardiaca && sv.frecuenciaCardiaca > 90) criteriosSepsis.push('FC > 90');
-  if (sv.frecuenciaRespir && sv.frecuenciaRespir > 20) criteriosSepsis.push('FR > 20');
-  if (lab.leucocitos && (lab.leucocitos > 12000 || lab.leucocitos < 4000)) criteriosSepsis.push('leucocitosis/leucopenia');
-  if (gaso.Lactato && gaso.Lactato >= 2) criteriosSepsis.push('lactato ≥ 2 mmol/L');
-  if (lab.procalcitonina && lab.procalcitonina > 2) criteriosSepsis.push('PCT > 2 ng/mL');
+  if (hasNumericValue(sv.temperatura) && (sv.temperatura > 38.3 || sv.temperatura < 36)) criteriosSepsis.push('temperatura alterada');
+  if (hasNumericValue(sv.frecuenciaCardiaca) && sv.frecuenciaCardiaca > 90) criteriosSepsis.push('FC > 90');
+  if (hasNumericValue(sv.frecuenciaRespir) && sv.frecuenciaRespir > 20) criteriosSepsis.push('FR > 20');
+  if (hasNumericValue(lab.leucocitos) && (lab.leucocitos > 12000 || lab.leucocitos < 4000)) criteriosSepsis.push('leucocitosis/leucopenia');
+  if (hasNumericValue(gaso.Lactato) && gaso.Lactato >= 2) criteriosSepsis.push('lactato ≥ 2 mmol/L');
+  if (hasNumericValue(lab.procalcitonina) && lab.procalcitonina > 2) criteriosSepsis.push('PCT > 2 ng/mL');
 
   if (criteriosSepsis.length >= 3) {
     alertas.push({
@@ -247,7 +253,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
   }
 
   // ── 9. Neurológico ──────────────────────────────────────
-  if (sv.glasgow !== undefined) {
+  if (hasNumericValue(sv.glasgow)) {
     if (sv.glasgow <= 8) {
       alertas.push({
         tipo: 'critica',
@@ -266,7 +272,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
   }
 
   // ── 10. Laboratorios críticos ────────────────────────────
-  if (lab.potasio !== undefined) {
+  if (hasNumericValue(lab.potasio)) {
     if (lab.potasio >= 6.0) {
       alertas.push({
         tipo: 'critica',
@@ -280,19 +286,19 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
     }
   }
 
-  if (lab.glucosa !== undefined || sv.glucosaCapilar !== undefined) {
+  if (hasNumericValue(lab.glucosa) || hasNumericValue(sv.glucosaCapilar)) {
     const glucosa = lab.glucosa ?? sv.glucosaCapilar;
-    if (glucosa && glucosa > 250) {
+    if (hasNumericValue(glucosa) && glucosa > 250) {
       alertas.push({
         tipo: 'critica',
         mensaje: `ALERTA: Glucosa = ${glucosa} mg/dL — Hiperglucemia grave. Evaluar cetoacidosis/hiperosmolar. Protocolo de insulina indicado.`,
       });
-    } else if (glucosa && glucosa > 180) {
+    } else if (hasNumericValue(glucosa) && glucosa > 180) {
       alertas.push({
         tipo: 'advertencia',
         mensaje: `PRECAUCIÓN: Glucosa = ${glucosa} mg/dL — Hiperglucemia. En UCI meta glucémica 140-180 mg/dL. Monitorizar e iniciar protocolo si indicado.`,
       });
-    } else if (glucosa && glucosa < 70) {
+    } else if (hasNumericValue(glucosa) && glucosa < 70) {
       alertas.push({
         tipo: 'critica',
         mensaje: `CRÍTICO: Glucosa = ${glucosa} mg/dL — Hipoglucemia. Corrección inmediata. Verificar causa y ajustar tratamiento.`,
@@ -300,7 +306,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
     }
   }
 
-  if (lab.creatinina !== undefined && lab.creatinina > 2.0) {
+  if (hasNumericValue(lab.creatinina) && lab.creatinina > 2.0) {
     alertas.push({
       tipo: 'advertencia',
       mensaje: `PRECAUCIÓN: Creatinina = ${lab.creatinina} mg/dL — Elevada. Evaluar función renal, ajustar medicamentos nefrotóxicos y volumen.`,
@@ -308,7 +314,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
   }
 
   // ── 11. Diuresis ─────────────────────────────────────────
-  if (sv.diuresisHora !== undefined) {
+  if (hasNumericValue(sv.diuresisHora)) {
     if (sv.diuresisHora < 0.3) {
       alertas.push({
         tipo: 'critica',
@@ -349,7 +355,7 @@ export function evaluarReglasClinicas(datos: DatosEvaluacion): {
   }
 
   // ── 13. Temperatura crítica ──────────────────────────────
-  if (sv.temperatura !== undefined) {
+  if (hasNumericValue(sv.temperatura)) {
     if (sv.temperatura >= 39.5) {
       alertas.push({
         tipo: 'advertencia',

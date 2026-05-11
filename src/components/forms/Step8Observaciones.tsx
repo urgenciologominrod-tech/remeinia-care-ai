@@ -50,7 +50,7 @@ export default function Step8Observaciones() {
             <li>El plan generado contiene <strong>sugerencias de apoyo clínico</strong>, no prescripciones.</li>
             <li>Cada diagnóstico, resultado e intervención debe ser <strong>evaluado y validado</strong> por ti.</li>
             <li>Los catálogos demostrativos están marcados con <strong>[DEMO]</strong>. Para uso clínico real, usar catálogos licenciados.</li>
-            <li>Las referencias bibliográficas marcadas como <strong>[DATO DEMO]</strong> son ficticias.</li>
+            <li>Contenido demostrativo para apoyo académico y clínico, con validación profesional obligatoria.</li>
             <li>Puedes <strong>editar el plan</strong> antes de guardarlo o exportarlo.</li>
           </ul>
         </div>

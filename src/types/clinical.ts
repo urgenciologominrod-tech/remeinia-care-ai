@@ -40,7 +40,7 @@ export interface ParametrosVentilador {
   activa: boolean;
   tipoO2?: string;
   modoVentilatorio?: string;
-  fio2?: number;
+  fio2?: number; // Captura flexible: fracción (0.21–1.0) o porcentaje (21–100)
   peep?: number;
   volumenTidal?: number;
   frProgramada?: number;
@@ -115,11 +115,13 @@ export interface AlertaClinica {
 export interface DiagnosticoEnfermeriaSugerido {
   codigo: string;
   etiqueta: string;
+  dominioClinico?: string;
   prioridad: PrioridadClinica;
   factoresRelacionados?: string[];
   factoresRiesgo?: string[];
   manifestacionesClave?: string[];
   justificacion: string;
+  criteriosEvaluacion?: string[];
   confianza: NivelConfianza;
   evidenciaIds?: string[];
 }
