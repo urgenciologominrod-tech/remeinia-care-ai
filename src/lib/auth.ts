@@ -42,6 +42,45 @@ function getDemoUser(email: string, password: string) {
   return null;
 }
 
+const DEMO_USERS = {
+  'admin@remeinia.org': {
+    password: 'Admin2024!',
+    profile: {
+      id: 'demo-admin',
+      email: 'admin@remeinia.org',
+      name: 'Administrador Académico',
+      rol: 'ADMINISTRADOR',
+      servicio: 'Académico',
+      activo: true,
+    },
+  },
+  'enfermera.demo@remeinia.org': {
+    password: 'Enfermera2024!',
+    profile: {
+      id: 'demo-nurse',
+      email: 'enfermera.demo@remeinia.org',
+      name: 'Enfermera Académica',
+      rol: 'ENFERMERO',
+      servicio: 'Académico',
+      activo: true,
+    },
+  },
+} as const;
+
+const PRESENTATION_DEMO_MODE = true; // Modo demo temporal para presentación académica. Desactivar después de la demo institucional.
+const demoLoginEnabled = process.env.DEMO_LOGIN_ENABLED === "true" || PRESENTATION_DEMO_MODE;
+
+const getDemoUser = (email: string, password: string) => {
+  const demoUser = DEMO_USERS[email as keyof typeof DEMO_USERS];
+
+  if (!demoUser) {
+    return null;
+  }
+
+  return demoUser.password === password ? demoUser.profile : null;
+};
+
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
   pages: {
