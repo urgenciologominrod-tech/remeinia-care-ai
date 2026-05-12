@@ -54,8 +54,8 @@ export default function LoginPage() {
     setError(null);
 
     const result = await signIn('credentials', {
-      email: 'enfermera.demo@remeinia.org',
-      password: 'Enfermera2024!',
+      email: 'admin@remeinia.org',
+      password: 'Admin2024!',
       redirect: false,
     });
 
@@ -221,7 +221,7 @@ export default function LoginPage() {
                 </div>
                 <div className="bg-purple-100/50 rounded p-1.5">
                   <p className="font-medium">Enfermera:</p>
-                  <p>enfermera.demo@</p>
+                  <p>enfermera.demo@remeinia.org</p>
                   <p>Enfermera2024!</p>
                 </div>
               </div>
