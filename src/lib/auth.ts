@@ -80,6 +80,14 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!usuario) {
+          if (demoLoginEnabled) {
+            const demoUser = DEMO_USERS[email as keyof typeof DEMO_USERS];
+
+            if (demoUser && password === demoUser.password) {
+              return demoUser.profile;
+            }
+          }
+
           return null;
         }
 
