@@ -32,7 +32,7 @@ const DEMO_USERS = {
 } as const;
 
 const PRESENTATION_DEMO_MODE = true; // Modo demo temporal para presentación académica. Desactivar después de la demo institucional.
-const demoLoginEnabled = process.env.DEMO_LOGIN_ENABLED === 'true' || PRESENTATION_DEMO_MODE;
+const demoLoginEnabled = process.env.DEMO_LOGIN_ENABLED === "true" || PRESENTATION_DEMO_MODE;
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
@@ -103,7 +103,7 @@ export const authOptions: NextAuthOptions = {
             data: {
               usuarioId: usuario.id,
               accion: 'login',
-              detalles: { email: usuario.email },
+              detalles: { origen: 'auth-credentials' },
             },
           })
           .catch(() => {});
