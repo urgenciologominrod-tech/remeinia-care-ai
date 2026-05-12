@@ -4,7 +4,43 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+
+const PRESENTATION_DEMO_MODE = true; // Modo demo temporal para presentación académica. Desactivar después de la demo institucional.
+
+const demoLoginEnabled =
+  process.env.DEMO_LOGIN_ENABLED === "true" || PRESENTATION_DEMO_MODE;
+
+function getDemoUser(email: string, password: string) {
+  if (!demoLoginEnabled) return null;
+
+  if (email === 'admin@remeinia.org' && password === 'Admin2024!') {
+    return {
+      id: 'demo-admin',
+      email: 'admin@remeinia.org',
+      name: 'Administrador Académico',
+      nombre: 'Administrador Académico',
+      rol: 'ADMINISTRADOR',
+      role: 'ADMINISTRADOR',
+      servicio: 'Académico',
+      activo: true,
+    };
+  }
+
+  if (email === 'enfermera.demo@remeinia.org' && password === 'Enfermera2024!') {
+    return {
+      id: 'demo-nurse',
+      email: 'enfermera.demo@remeinia.org',
+      name: 'Enfermera Académica',
+      nombre: 'Enfermera Académica',
+      rol: 'ENFERMERO',
+      role: 'ENFERMERO',
+      servicio: 'Académico',
+      activo: true,
+    };
+  }
+
+  return null;
+}
 
 const DEMO_USERS = {
   'admin@remeinia.org': {
@@ -64,77 +100,71 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const email = credentials.email.toLowerCase().trim();
-        const password = credentials.password;
+        const email = String(credentials.email).trim().toLowerCase();
+        const password = String(credentials.password);
 
-        if (demoLoginEnabled) {
-          const demoUser = getDemoUser(email, password);
+        const demoUser = getDemoUser(email, password);
+        if (demoUser) return demoUser;
 
-          if (demoUser) {
-            return demoUser;
-          }
-        }
+        try {
+          const { prisma } = await import('@/lib/prisma');
 
-        const usuario = await prisma.usuario.findFirst({
-          where: { email },
-        });
+          const usuario = await prisma.usuario.findFirst({
+            where: { email },
+          });
 
-        if (!usuario) {
-          if (demoLoginEnabled) {
-            const demoUser = DEMO_USERS[email as keyof typeof DEMO_USERS];
-
-            if (demoUser && password === demoUser.password) {
-              return demoUser.profile;
-            }
+          if (!usuario) {
+            return null;
           }
 
+          if (!usuario.activo) {
+            return null;
+          }
+
+          const hash = usuario.passwordHash?.trim();
+
+          // Validación crítica de hash
+          if (!hash || hash.length !== 60) {
+            return null;
+          }
+
+          const passwordValida = await bcrypt.compare(password, hash);
+
+          if (!passwordValida) {
+            return null;
+          }
+
+          // Actualización de último acceso
+          await prisma.usuario
+            .update({
+              where: { id: usuario.id },
+              data: { ultimoAcceso: new Date() },
+            })
+            .catch(() => {});
+
+          // Bitácora
+          await prisma.bitacoraAccion
+            .create({
+              data: {
+                usuarioId: usuario.id,
+                accion: 'login',
+                detalles: { origen: 'auth-credentials' },
+              },
+            })
+            .catch(() => {});
+
+          return {
+            id: usuario.id,
+            email: usuario.email,
+            name: `${usuario.nombre} ${usuario.apellidos}`,
+            rol: usuario.rol,
+            servicio: usuario.servicio,
+            activo: usuario.activo,
+          };
+        } catch (error) {
+          console.error('[auth] Error de autenticación con base de datos');
           return null;
         }
-
-        if (!usuario.activo) {
-          return null;
-        }
-
-        const hash = usuario.passwordHash?.trim();
-
-        // Validación crítica de hash
-        if (!hash || hash.length !== 60) {
-          return null;
-        }
-
-        const passwordValida = await bcrypt.compare(password, hash);
-
-        if (!passwordValida) {
-          return null;
-        }
-
-        // Actualización de último acceso
-        await prisma.usuario
-          .update({
-            where: { id: usuario.id },
-            data: { ultimoAcceso: new Date() },
-          })
-          .catch(() => {});
-
-        // Bitácora
-        await prisma.bitacoraAccion
-          .create({
-            data: {
-              usuarioId: usuario.id,
-              accion: 'login',
-              detalles: { origen: 'auth-credentials' },
-            },
-          })
-          .catch(() => {});
-
-        return {
-          id: usuario.id,
-          email: usuario.email,
-          name: `${usuario.nombre} ${usuario.apellidos}`,
-          rol: usuario.rol,
-          servicio: usuario.servicio,
-          activo: usuario.activo,
-        };
       },
     }),
   ],
