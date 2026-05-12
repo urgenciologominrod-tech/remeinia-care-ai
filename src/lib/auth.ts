@@ -34,6 +34,17 @@ const DEMO_USERS = {
 const PRESENTATION_DEMO_MODE = true; // Modo demo temporal para presentación académica. Desactivar después de la demo institucional.
 const demoLoginEnabled = process.env.DEMO_LOGIN_ENABLED === "true" || PRESENTATION_DEMO_MODE;
 
+const getDemoUser = (email: string, password: string) => {
+  const demoUser = DEMO_USERS[email as keyof typeof DEMO_USERS];
+
+  if (!demoUser) {
+    return null;
+  }
+
+  return demoUser.password === password ? demoUser.profile : null;
+};
+
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
   pages: {
@@ -55,6 +66,14 @@ export const authOptions: NextAuthOptions = {
 
         const email = credentials.email.toLowerCase().trim();
         const password = credentials.password;
+
+        if (demoLoginEnabled) {
+          const demoUser = getDemoUser(email, password);
+
+          if (demoUser) {
+            return demoUser;
+          }
+        }
 
         const usuario = await prisma.usuario.findFirst({
           where: { email },
