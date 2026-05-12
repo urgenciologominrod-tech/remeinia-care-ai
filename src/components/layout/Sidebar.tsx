@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, PlusCircle, ClipboardList, Activity,
-  BookOpen, Settings, ChevronLeft, Shield, Users, FileText,
+  BookOpen, Settings, ChevronLeft, Shield, Users, FileText, GraduationCap,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { RolUsuario } from '@/types/clinical';
@@ -16,6 +16,7 @@ const navItems = [
   { href: '/valoraciones', label: 'Valoraciones', icon: ClipboardList, roles: ['ENFERMERO','SUPERVISOR','ADMINISTRADOR'] },
   { href: '/evidencia', label: 'Base de evidencia', icon: BookOpen, roles: ['ENFERMERO','SUPERVISOR','ADMINISTRADOR','REVISOR_REMEINIA'] },
   { href: '/reportes', label: 'Reportes', icon: FileText, roles: ['SUPERVISOR','ADMINISTRADOR'] },
+  { href: '/medicina-preventiva', label: 'Medicina preventiva', icon: GraduationCap, roles: ['ENFERMERO','SUPERVISOR','ADMINISTRADOR','REVISOR_REMEINIA'] },
   { href: '/admin', label: 'Administración', icon: Settings, roles: ['ADMINISTRADOR'] },
   { href: '/admin/usuarios', label: 'Usuarios', icon: Users, roles: ['ADMINISTRADOR'] },
   { href: '/remeinia', label: 'Módulo REMEINIA', icon: Shield, roles: ['REVISOR_REMEINIA','ADMINISTRADOR'] },
