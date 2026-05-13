@@ -212,6 +212,20 @@ export default function NuevaValoracionPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Error al guardar');
+
+      if (json.isDemo && json.plan) {
+        sessionStorage.setItem('remeinia_demo_plan', JSON.stringify({
+          id: json.planId,
+          plan: json.plan,
+          estadoPaciente: json.estadoPaciente,
+          alertas: json.alertas ?? [],
+          generadoEn: new Date().toISOString(),
+          valoracion: data,
+        }));
+        router.push('/plan-cuidados/demo');
+        return;
+      }
+
       router.push(`/plan-cuidados/${json.valoracionId}`);
     } catch (e: any) {
       setError('No fue posible generar el plan de cuidados. Verifique la información capturada e intente nuevamente.');
